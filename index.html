@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rigel's Revenge — A Text Adventure Game</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --red:    #c0392b;
+      --red-bright: #e74c3c;
+      --red-glow: rgba(192, 57, 43, 0.6);
+      --green:  #00ff88;
+      --green-dim: #00cc66;
+      --green-glow: rgba(0, 255, 136, 0.35);
+      --black:  #050505;
+      --dark:   #0d0d0d;
+      --dark2:  #111111;
+      --dark3:  #181818;
+      --text:   #d4d4d4;
+      --text-dim: #888;
+      --border: rgba(0, 255, 136, 0.25);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background-color: var(--black);
+      color: var(--text);
+      font-family: 'Exo 2', sans-serif;
+      overflow-x: hidden;
+      line-height: 1.6;
+    }
+
+    /* ─── SCANLINE OVERLAY ─── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent 3px,
+        rgba(0,0,0,0.08) 3px,
+        rgba(0,0,0,0.08) 4px
+      );
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* ─── NAV ─── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2.5rem;
+      height: 60px;
+      background: rgba(5,5,5,0.92);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(8px);
+    }
+
+    .nav-logo {
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 900;
+      font-size: 1rem;
+      letter-spacing: 0.15em;
+      color: var(--red-bright);
+      text-transform: uppercase;
+      text-decoration: none;
+    }
+
+    .nav-logo span { color: var(--green); }
+
+    .nav-links {
+      display: flex;
+      gap: 2rem;
+      list-style: none;
+    }
+
+    .nav-links a {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.78rem;
+      letter-spacing: 0.1em;
+      color: var(--text-dim);
+      text-decoration: none;
+      text-transform: uppercase;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover { color: var(--green); }
+
+    .nav-cta {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.78rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 0.45rem 1.2rem;
+      border: 1px solid var(--red-bright);
+      color: var(--red-bright);
+      text-decoration: none;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .nav-cta:hover {
+      background: var(--red-bright);
+      color: #fff;
+    }
+
+    /* ─── HERO ─── */
+    .hero {
+      position: relative;
+      width: 100%;
+      height: 100vh;
+      min-height: 600px;
+      display: flex;
+      align-items: flex-end;
+      overflow: hidden;
+    }
+
+    .hero-bg {
+      position: absolute;
+      inset: 0;
+      background-image: url('rigels_revenge_ad_hero.png');
+      background-size: cover;
+      background-position: center top;
+      transform: scale(1.04);
+      animation: heroZoom 20s ease-in-out infinite alternate;
+    }
+
+    @keyframes heroZoom {
+      from { transform: scale(1.04) translateY(0); }
+      to   { transform: scale(1.08) translateY(-1%); }
+    }
+
+    .hero-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        to bottom,
+        rgba(5,5,5,0.1) 0%,
+        rgba(5,5,5,0.0) 30%,
+        rgba(5,5,5,0.55) 70%,
+        rgba(5,5,5,0.98) 100%
+      );
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      width: 100%;
+      padding: 0 6vw 5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 1.2rem;
+    }
+
+    .hero-eyebrow {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.78rem;
+      letter-spacing: 0.3em;
+      color: var(--green);
+      text-transform: uppercase;
+      opacity: 0.85;
+    }
+
+    .hero-eyebrow::before {
+      content: '> ';
+      color: var(--green-dim);
+    }
+
+    .hero-title {
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 900;
+      font-size: clamp(3rem, 8vw, 7rem);
+      line-height: 0.95;
+      letter-spacing: -0.01em;
+      color: #fff;
+      text-shadow:
+        0 0 40px var(--red-glow),
+        0 0 80px var(--red-glow),
+        2px 2px 0 rgba(0,0,0,0.8);
+    }
+
+    .hero-title .accent { color: var(--red-bright); }
+
+    .hero-tagline {
+      font-family: 'Exo 2', sans-serif;
+      font-size: clamp(1rem, 2vw, 1.35rem);
+      font-weight: 300;
+      letter-spacing: 0.25em;
+      color: var(--text);
+      text-transform: uppercase;
+    }
+
+    .hero-tagline strong {
+      color: var(--green);
+      font-weight: 600;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-top: 0.5rem;
+    }
+
+    .btn-primary {
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 700;
+      font-size: 0.9rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      padding: 0.9rem 2.4rem;
+      background: var(--red-bright);
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+      clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+      transition: background 0.2s, box-shadow 0.2s;
+      box-shadow: 0 0 20px var(--red-glow);
+    }
+
+    .btn-primary:hover {
+      background: #ff5a47;
+      box-shadow: 0 0 35px var(--red-glow);
+    }
+
+    .btn-secondary {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.85rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 0.9rem 2rem;
+      background: transparent;
+      color: var(--green);
+      border: 1px solid var(--green);
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+      transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+    }
+
+    .btn-secondary:hover {
+      background: rgba(0, 255, 136, 0.08);
+      box-shadow: 0 0 20px var(--green-glow);
+    }
+
+    .hero-scroll-hint {
+      position: absolute;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.4rem;
+      opacity: 0.45;
+      animation: bounce 2.5s ease-in-out infinite;
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateX(-50%) translateY(0); }
+      50%       { transform: translateX(-50%) translateY(6px); }
+    }
+
+    .hero-scroll-hint span {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.2em;
+      color: var(--text-dim);
+      text-transform: uppercase;
+    }
+
+    .hero-scroll-hint svg { color: var(--text-dim); }
+
+    /* ─── SECTION BASE ─── */
+    section { padding: 6rem 6vw; }
+
+    .section-label {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.72rem;
+      letter-spacing: 0.35em;
+      color: var(--green);
+      text-transform: uppercase;
+      margin-bottom: 0.75rem;
+      opacity: 0.8;
+    }
+
+    .section-label::before { content: '// '; color: var(--text-dim); }
+
+    h2.section-title {
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 700;
+      font-size: clamp(1.8rem, 4vw, 3rem);
+      color: #fff;
+      line-height: 1.1;
+      margin-bottom: 1.5rem;
+    }
+
+    h2.section-title .accent { color: var(--red-bright); }
+
+    /* ─── STORY SECTION ─── */
+    .story {
+      background: var(--dark);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5rem;
+      align-items: center;
+    }
+
+    .story-text p {
+      font-size: 1.05rem;
+      color: var(--text);
+      line-height: 1.85;
+      margin-bottom: 1.2rem;
+    }
+
+    .story-text p strong { color: var(--red-bright); }
+
+    .terminal-card {
+      background: #050f0a;
+      border: 1px solid rgba(0, 255, 136, 0.3);
+      padding: 2rem;
+      position: relative;
+      box-shadow: 0 0 40px rgba(0, 255, 136, 0.08), inset 0 0 30px rgba(0,0,0,0.5);
+    }
+
+    .terminal-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent 2px,
+        rgba(0, 255, 136, 0.015) 2px,
+        rgba(0, 255, 136, 0.015) 4px
+      );
+      pointer-events: none;
+    }
+
+    .terminal-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid rgba(0, 255, 136, 0.15);
+    }
+
+    .terminal-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+    }
+
+    .terminal-dot:nth-child(1) { background: #ff5f57; }
+    .terminal-dot:nth-child(2) { background: #febc2e; }
+    .terminal-dot:nth-child(3) { background: #28c840; }
+
+    .terminal-title-bar {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      letter-spacing: 0.1em;
+      margin-left: auto;
+    }
+
+    .terminal-body {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.82rem;
+      line-height: 1.9;
+      color: var(--green);
+    }
+
+    .terminal-body .dim { color: rgba(0, 255, 136, 0.4); }
+    .terminal-body .red { color: var(--red-bright); }
+    .terminal-body .white { color: #e0e0e0; }
+
+    .cursor {
+      display: inline-block;
+      width: 8px;
+      height: 1em;
+      background: var(--green);
+      vertical-align: text-bottom;
+      animation: blink 1s step-end infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0; }
+    }
+
+    /* ─── FEATURES ─── */
+    .features {
+      background: var(--black);
+      text-align: center;
+    }
+
+    .features-intro {
+      max-width: 640px;
+      margin: 0 auto 3.5rem;
+      font-size: 1.05rem;
+      color: var(--text-dim);
+      line-height: 1.8;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1.5rem;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .feature-card {
+      background: var(--dark2);
+      border: 1px solid rgba(255,255,255,0.06);
+      padding: 2rem 1.75rem;
+      text-align: left;
+      position: relative;
+      transition: border-color 0.3s, transform 0.3s;
+    }
+
+    .feature-card::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0;
+      width: 0; height: 2px;
+      background: var(--red-bright);
+      transition: width 0.4s ease;
+    }
+
+    .feature-card:hover { border-color: rgba(231, 76, 60, 0.4); transform: translateY(-4px); }
+    .feature-card:hover::after { width: 100%; }
+
+    .feature-icon {
+      font-size: 1.8rem;
+      margin-bottom: 1rem;
+    }
+
+    .feature-card h3 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      color: #fff;
+      text-transform: uppercase;
+      margin-bottom: 0.6rem;
+    }
+
+    .feature-card p {
+      font-size: 0.9rem;
+      color: var(--text-dim);
+      line-height: 1.7;
+    }
+
+    /* ─── DIFFICULTY ─── */
+    .difficulty {
+      background: var(--dark);
+      text-align: center;
+    }
+
+    .diff-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+      max-width: 900px;
+      margin: 3rem auto 0;
+    }
+
+    .diff-card {
+      border: 1px solid;
+      padding: 2.5rem 1.75rem;
+      position: relative;
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+
+    .diff-card:hover { transform: translateY(-6px); }
+
+    .diff-card.easy  { border-color: rgba(0, 255, 136, 0.35); }
+    .diff-card.hard  { border-color: rgba(231, 76, 60, 0.5); }
+    .diff-card.pro   { border-color: rgba(255, 200, 0, 0.5); background: rgba(255,200,0,0.03); }
+
+    .diff-card.easy:hover  { box-shadow: 0 0 30px rgba(0,255,136,0.15); }
+    .diff-card.hard:hover  { box-shadow: 0 0 30px rgba(231,76,60,0.2); }
+    .diff-card.pro:hover   { box-shadow: 0 0 30px rgba(255,200,0,0.2); }
+
+    .diff-badge {
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 900;
+      font-size: 1.5rem;
+      letter-spacing: 0.1em;
+      margin-bottom: 0.4rem;
+    }
+
+    .diff-card.easy  .diff-badge { color: var(--green); }
+    .diff-card.hard  .diff-badge { color: var(--red-bright); }
+    .diff-card.pro   .diff-badge { color: #ffc800; }
+
+    .diff-subtitle {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.7rem;
+      letter-spacing: 0.2em;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin-bottom: 1.2rem;
+    }
+
+    .diff-card p {
+      font-size: 0.9rem;
+      color: var(--text-dim);
+      line-height: 1.7;
+    }
+
+    .diff-card.pro .diff-corner {
+      position: absolute;
+      top: -1px; right: -1px;
+      width: 0; height: 0;
+      border-style: solid;
+      border-width: 0 28px 28px 0;
+      border-color: transparent #ffc800 transparent transparent;
+    }
+
+    /* ─── TERMINAL SHOWCASE ─── */
+    .showcase {
+      background: var(--black);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5rem;
+      align-items: center;
+    }
+
+    .showcase-img {
+      position: relative;
+    }
+
+    .showcase-img img {
+      width: 100%;
+      display: block;
+      border: 1px solid rgba(0, 255, 136, 0.2);
+      box-shadow: 0 0 60px rgba(0, 255, 136, 0.1);
+    }
+
+    .showcase-img::before {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      background: linear-gradient(135deg, rgba(0,255,136,0.15) 0%, transparent 50%);
+      pointer-events: none;
+    }
+
+    .showcase-text .section-label { margin-top: 0; }
+
+    .showcase-text p {
+      font-size: 1.05rem;
+      color: var(--text);
+      line-height: 1.85;
+      margin-bottom: 1.2rem;
+    }
+
+    .quote-block {
+      border-left: 3px solid var(--red-bright);
+      padding: 1rem 1.5rem;
+      margin: 1.5rem 0;
+      background: rgba(192, 57, 43, 0.06);
+    }
+
+    .quote-block p {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.88rem;
+      color: var(--text);
+      line-height: 1.7;
+      margin: 0;
+    }
+
+    /* ─── STATS BAR ─── */
+    .stats {
+      background: var(--dark2);
+      border-top: 1px solid rgba(255,255,255,0.05);
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      padding: 3rem 6vw;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 2rem;
+      text-align: center;
+    }
+
+    .stat-item {}
+
+    .stat-number {
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 900;
+      font-size: clamp(2rem, 4vw, 3.2rem);
+      color: var(--red-bright);
+      line-height: 1;
+      margin-bottom: 0.4rem;
+      text-shadow: 0 0 20px var(--red-glow);
+    }
+
+    .stat-label {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.72rem;
+      letter-spacing: 0.2em;
+      color: var(--text-dim);
+      text-transform: uppercase;
+    }
+
+    /* ─── CTA ─── */
+    .cta-section {
+      background: var(--dark);
+      text-align: center;
+      padding: 7rem 6vw;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cta-section::before {
+      content: '';
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(192,57,43,0.12) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .cta-section h2 {
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 900;
+      font-size: clamp(2rem, 5vw, 4rem);
+      color: #fff;
+      line-height: 1.1;
+      margin-bottom: 1.5rem;
+      position: relative;
+    }
+
+    .cta-section h2 .accent { color: var(--red-bright); }
+
+    .cta-section p {
+      font-size: 1.1rem;
+      color: var(--text-dim);
+      max-width: 560px;
+      margin: 0 auto 2.5rem;
+      line-height: 1.8;
+      position: relative;
+    }
+
+    .cta-actions {
+      display: flex;
+      gap: 1.2rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      position: relative;
+    }
+
+    /* ─── FOOTER ─── */
+    footer {
+      background: var(--black);
+      border-top: 1px solid rgba(255,255,255,0.05);
+      padding: 2.5rem 6vw;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .footer-logo {
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 900;
+      font-size: 0.9rem;
+      letter-spacing: 0.15em;
+      color: var(--red-bright);
+      text-transform: uppercase;
+    }
+
+    .footer-logo span { color: var(--green); }
+
+    .footer-copy {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      letter-spacing: 0.1em;
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 1.5rem;
+      list-style: none;
+    }
+
+    .footer-links a {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.72rem;
+      letter-spacing: 0.1em;
+      color: var(--text-dim);
+      text-decoration: none;
+      text-transform: uppercase;
+      transition: color 0.2s;
+    }
+
+    .footer-links a:hover { color: var(--green); }
+
+    /* ─── DIVIDER ─── */
+    .divider {
+      width: 100%;
+      height: 1px;
+      background: linear-gradient(to right, transparent, rgba(255,255,255,0.08), transparent);
+    }
+
+    /* ─── RESPONSIVE ─── */
+    @media (max-width: 900px) {
+      .story, .showcase { grid-template-columns: 1fr; gap: 3rem; }
+      .diff-grid { grid-template-columns: 1fr; max-width: 400px; }
+      .stats { grid-template-columns: repeat(2, 1fr); }
+      nav .nav-links { display: none; }
+    }
+
+    @media (max-width: 600px) {
+      .stats { grid-template-columns: 1fr 1fr; }
+      .hero-content { padding-bottom: 4rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <a href="#" class="nav-logo">Rigel's <span>Revenge</span></a>
+    <ul class="nav-links">
+      <li><a href="#story">Story</a></li>
+      <li><a href="#features">Features</a></li>
+      <li><a href="#difficulty">Difficulty</a></li>
+      <li><a href="#gameplay">Gameplay</a></li>
+    </ul>
+    <a href="https://rigels-revenge-adventure.lovable.app" target="_blank" class="nav-cta">Play Now</a>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero" id="top">
+    <div class="hero-bg"></div>
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+      <p class="hero-eyebrow">Rigel V · 23rd Century · Text Adventure</p>
+      <h1 class="hero-title">
+        RIGEL'S<br><span class="accent">REVENGE</span>
+      </h1>
+      <p class="hero-tagline">
+        <strong>Explore.</strong>&nbsp; Survive.&nbsp; <strong>Get Revenge.</strong>
+      </p>
+      <div class="hero-actions">
+        <a href="https://rigels-revenge-adventure.lovable.app" target="_blank" class="btn-primary">Begin Transmission</a>
+        <a href="#story" class="btn-secondary">Learn More</a>
+      </div>
+    </div>
+    <div class="hero-scroll-hint">
+      <span>Scroll</span>
+      <svg width="16" height="20" viewBox="0 0 16 20" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M8 4v12M4 12l4 4 4-4"/>
+      </svg>
+    </div>
+  </section>
+
+  <!-- STATS BAR -->
+  <div class="stats">
+    <div class="stat-item">
+      <div class="stat-number">23rd</div>
+      <div class="stat-label">Century Setting</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-number">3</div>
+      <div class="stat-label">Difficulty Modes</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-number">1987</div>
+      <div class="stat-label">Original Inspiration</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-number">100</div>
+      <div class="stat-label">Points to Earn</div>
+    </div>
+  </div>
+
+  <!-- STORY -->
+  <section class="story" id="story">
+    <div class="story-text">
+      <p class="section-label">The Mission</p>
+      <h2 class="section-title">A Planet That <span class="accent">Doesn't Want</span> You Alive</h2>
+      <p>
+        You are <strong>Harper</strong> — a 23rd-century investigative journalist operating deep-cover
+        with the Alterian Corps. One week ago, your partner <strong>Elliot</strong> vanished somewhere
+        on the surface of Rigel V. No signal. No trace. No mercy.
+      </p>
+      <p>
+        Now you're on the ground, alone, in the pitch black of a Rigel V night. Sand shifts somewhere
+        ahead. Your satchel hangs heavy at your hip. Somewhere in this ruined world lies a
+        <strong>Doomsday Machine</strong> — and the answers you came for.
+      </p>
+      <p>
+        Find Elliot. Find the machine. <strong>Get out alive.</strong>
+      </p>
+      <a href="https://rigels-revenge-adventure.lovable.app" target="_blank" class="btn-primary" style="margin-top:0.5rem;">Start Your Mission</a>
+    </div>
+    <div>
+      <div class="terminal-card">
+        <div class="terminal-header">
+          <div class="terminal-dot"></div>
+          <div class="terminal-dot"></div>
+          <div class="terminal-dot"></div>
+          <span class="terminal-title-bar">RIGEL_V_TERMINAL — SECTOR 7</span>
+        </div>
+        <div class="terminal-body">
+          <div class="dim">RIGEL'S REVENGE — A TEXT ADVENTURE</div>
+          <div class="dim">HARD — NO HINTS, NO MERCY.</div>
+          <br>
+          <div class="white">YOU ARE HARPER, A 23RD-CENTURY</div>
+          <div class="white">INVESTIGATIVE JOURNALIST DEEP-COVER</div>
+          <div class="white">WITH THE ALTERIAN CORPS.</div>
+          <br>
+          <div>YOUR PARTNER ELLIOT VANISHED A</div>
+          <div>WEEK AGO ON RIGEL V.</div>
+          <br>
+          <div class="red">FIND HIM. FIND THE DOOMSDAY MACHINE.</div>
+          <div class="red">GET OUT ALIVE.</div>
+          <br>
+          <div class="dim">LOCATION: THE TOWN &amp; FLATS</div>
+          <div class="dim">TIME: 23:59 · NIGHT · TURN 0</div>
+          <br>
+          <div>&gt; <span class="cursor"></span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- FEATURES -->
+  <section class="features" id="features">
+    <p class="section-label">What Awaits You</p>
+    <h2 class="section-title">Built for <span class="accent">Players Who Think</span></h2>
+    <p class="features-intro">
+      Rigel's Revenge is not a passive experience. Every word you type shapes the outcome.
+      Every choice carries weight. The world remembers.
+    </p>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">🌍</div>
+        <h3>Living World</h3>
+        <p>The environment reacts to your actions. Make noise and sentries will remember. Be deliberate — or face the consequences.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📡</div>
+        <h3>Rich Narrative</h3>
+        <p>Atmospheric prose drops you into a gritty 23rd-century sci-fi world with every command you type. No cutscenes needed.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🗺️</div>
+        <h3>Explorable Map</h3>
+        <p>Navigate the ruins of Rigel V — from the Town &amp; Flats to the Desert beyond — with an in-game map to guide your path.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">⚡</div>
+        <h3>Immersive View</h3>
+        <p>Toggle the immersive visual mode for a cinematic backdrop that matches the desolate beauty of the alien world around you.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🏆</div>
+        <h3>Score System</h3>
+        <p>Track your progress with a 100-point scoring system. Can you solve every puzzle and escape with a perfect run?</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📜</div>
+        <h3>Classic Heritage</h3>
+        <p>Inspired by the original 1987 Mastertronic text adventure — rebuilt for modern players with the soul of the original intact.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- DIFFICULTY -->
+  <section class="difficulty" id="difficulty">
+    <p class="section-label">Choose Your Path</p>
+    <h2 class="section-title">How Hard Do You <span class="accent">Want It?</span></h2>
+    <div class="diff-grid">
+      <div class="diff-card easy">
+        <div class="diff-badge">EASY</div>
+        <div class="diff-subtitle">Guided Expedition</div>
+        <p>Subtle hints keep you on track. Type HINT anytime. The best way to experience the story for the first time without frustration.</p>
+      </div>
+      <div class="diff-card hard">
+        <div class="diff-badge">HARD</div>
+        <div class="diff-subtitle">Original 1987 Spirit</div>
+        <p>No hints. No guidance. Figure it out — or don't. The way the game was meant to be played. Pure, uncompromising adventure.</p>
+      </div>
+      <div class="diff-card pro">
+        <div class="diff-corner"></div>
+        <div class="diff-badge">PRO</div>
+        <div class="diff-subtitle">Consequences Enabled</div>
+        <p>Your choices change the world. Make noise and sentries remember. Every decision has weight. Be deliberate. Be precise.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- TERMINAL SHOWCASE -->
+  <section class="showcase" id="gameplay">
+    <div class="showcase-img">
+      <img src="rigels_revenge_ad_terminal.png" alt="Rigel's Revenge terminal gameplay screenshot" />
+    </div>
+    <div class="showcase-text">
+      <p class="section-label">The Interface</p>
+      <h2 class="section-title">Your Words Are <span class="accent">Your Weapons</span></h2>
+      <p>
+        There are no buttons to mash, no health bars to watch. In Rigel's Revenge, you communicate
+        directly with the world through natural language commands. Type what you want to do —
+        and the world responds.
+      </p>
+      <div class="quote-block">
+        <p>"Pitch black. The Rigel V night is absolute — you can't see your own hand. Sand shifts somewhere ahead, and you can feel rubble against your boots. Your satchel hangs heavy at your hip."</p>
+      </div>
+      <p>
+        The writing is terse, atmospheric, and unforgiving — exactly as a 23rd-century field
+        report should be. Every room description is a puzzle. Every item a potential clue.
+      </p>
+      <a href="https://rigels-revenge-adventure.lovable.app" target="_blank" class="btn-secondary">Enter the Terminal</a>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta-section">
+    <h2>The Planet Is <span class="accent">Waiting.</span><br>Are You Ready?</h2>
+    <p>
+      Rigel V does not forgive the unprepared. Step into the darkness, type your first command,
+      and begin the mission that will define your survival.
+    </p>
+    <div class="cta-actions">
+      <a href="https://rigels-revenge-adventure.lovable.app" target="_blank" class="btn-primary">Begin Transmission</a>
+      <a href="https://rigels-revenge-adventure.lovable.app" target="_blank" class="btn-secondary">Play Free — No Download</a>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-logo">Rigel's <span>Revenge</span></div>
+    <ul class="footer-links">
+      <li><a href="https://rigels-revenge-adventure.lovable.app" target="_blank">Play Now</a></li>
+      <li><a href="#story">Story</a></li>
+      <li><a href="#difficulty">Difficulty</a></li>
+    </ul>
+    <p class="footer-copy">Inspired by the 1987 Mastertronic original &nbsp;·&nbsp; Text Adventure &nbsp;·&nbsp; Free to Play</p>
+  </footer>
+
+</body>
+</html>
